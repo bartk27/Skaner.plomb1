@@ -1,14 +1,747 @@
 <!DOCTYPE html>
-<html>
+<html lang="pl">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Skaner plomb</title>
+
+<style>
+
+body{
+    font-family:Arial,sans-serif;
+    background:#111;
+    color:white;
+    margin:0;
+    padding:15px;
+}
+
+h1{
+    text-align:center;
+}
+
+.panel{
+    background:#222;
+    padding:15px;
+    margin-bottom:15px;
+    border-radius:10px;
+}
+
+input,button{
+    width:100%;
+    box-sizing:border-box;
+    padding:15px;
+    margin-top:8px;
+    font-size:18px;
+    border-radius:8px;
+    border:none;
+}
+
+button{
+    background:#1976d2;
+    color:white;
+}
+
+.red{
+    background:#c62828;
+}
+
+.green{
+    background:#2e7d32;
+}
+
+.counter{
+    font-size:22px;
+    margin:10px 0;
+}
+
+#lista{
+    max-height:300px;
+    overflow:auto;
+    background:#000;
+    padding:10px;
+}
+
+.element{
+    padding:8px;
+    border-bottom:1px solid #444;
+}
+
+.ok{
+    color:#4caf50;
+    font-size:18px;
+}
+
+.error{
+    color:#ff5252;
+    font-size:18px;
+}
+
+</style>
+
 </head>
+
 
 <body>
 
-<h1>Skaner plomb działa</h1>
+<h1>SKANER PLOMB</h1>
 
-<p>Test strony GitHub Pages</p>
 
-</body>
-</html>
+<div class="panel">
+
+<input id="rejestracja"
+placeholder="Numer rejestracyjny">
+
+
+<input id="operator"
+placeholder="Operator">
+
+
+</div>
+
+
+
+<div class="panel">
+
+<button onclick="startRozladunek()">
+START ROZŁADUNEK
+</button>
+
+<button onclick="startSprzatanie()">
+START SPRZĄTANIE
+</button>
+
+
+<p>
+Rozładunek:
+<span id="czasRozladunku">
+00:00:00
+</span>
+</p>
+
+
+<p>
+Sprzątanie:
+<span id="czasSprzatania">
+00:00:00
+</span>
+</p>
+
+</div>
+
+
+
+
+<div class="panel">
+
+<input id="skaner"
+placeholder="Skanuj plombę"
+autofocus>
+
+
+<div id="komunikat"></div>
+
+</div>
+
+
+
+
+<div class="panel">
+
+
+<div class="counter">
+Plomby 01:
+<span id="p01">0</span>
+</div>
+
+
+<div class="counter">
+Plomby 05:
+<span id="p05">0</span>
+</div>
+
+
+<div class="counter">
+Razem:
+<span id="razem">0</span>
+</div>
+
+
+<div class="counter">
+Wydajność:
+<span id="wydajnosc">0</span>
+plomb/min
+</div>
+
+
+</div>
+
+
+
+
+<div class="panel">
+
+
+<button onclick="usunOstatni()">
+Usuń ostatni skan
+</button>
+
+
+<button class="red" onclick="wyzeruj()">
+Wyzeruj
+</button>
+
+
+<button class="green" onclick="nowyRaport()">
+Nowy rozładunek
+</button>
+
+
+<button onclick="excel()">
+Zapisz raport Excel
+</button>
+
+
+</div>
+
+
+
+
+<div class="panel">
+
+<h3>Lista skanów</h3>
+
+<div id="lista"></div>
+
+</div>
+
+
+
+<script>
+
+
+let plomby=[];
+
+
+let czasStartRozladunku=null;
+let czasStartSprzatania=null;
+
+
+let sekundyRozladunku=0;
+let sekundySprzatania=0;
+
+
+
+
+const pole=document.getElementById("skaner");
+
+pole.focus();
+
+
+
+pole.addEventListener(
+"keypress",
+function(e){
+
+if(e.key==="Enter"){
+
+let kod=pole.value.trim();
+
+pole.value="";
+
+dodajPlombe(kod);
+
+}
+
+});
+
+
+
+
+
+function dodajPlombe(kod){
+
+
+let komunikat=
+document.getElementById("komunikat");
+
+
+
+if(
+!kod.startsWith("01")
+&&
+!kod.startsWith("05")
+){
+
+komunikat.innerHTML=
+"❌ Nieprawidłowa plomba";
+
+komunikat.className="error";
+
+return;
+
+}
+
+
+
+
+if(plomby.includes(kod)){
+
+
+komunikat.innerHTML=
+"⚠️ Ta plomba została już zeskanowana!";
+
+
+komunikat.className="error";
+
+return;
+
+}
+
+
+
+plomby.push({
+
+kod:kod,
+
+czas:new Date().toLocaleString()
+
+});
+
+
+
+komunikat.innerHTML=
+"✅ Dodano: "+kod;
+
+
+komunikat.className="ok";
+
+
+aktualizuj();
+
+
+zapiszPamiec();
+
+
+}
+
+
+
+
+function aktualizuj(){
+
+
+let ile01=
+plomby.filter(
+x=>x.kod.startsWith("01")
+).length;
+
+
+let ile05=
+plomby.filter(
+x=>x.kod.startsWith("05")
+).length;
+
+
+
+document.getElementById("p01").innerHTML=ile01;
+
+document.getElementById("p05").innerHTML=ile05;
+
+document.getElementById("razem").innerHTML=plomby.length;
+
+
+
+
+let lista="";
+
+
+plomby.forEach(
+(x,i)=>{
+
+
+lista+=`
+
+<div class="element">
+
+${i+1}. ${x.kod}
+<br>
+${x.czas}
+
+</div>
+
+`;
+
+});
+
+
+document.getElementById("lista").innerHTML=lista;
+
+
+liczWydajnosc();
+
+
+}
+
+
+
+function usunOstatni(){
+
+
+plomby.pop();
+
+aktualizuj();
+
+zapiszPamiec();
+
+}
+
+
+
+function wyzeruj(){
+
+
+if(confirm(
+"Czy na pewno usunąć cały raport?"
+)){
+
+
+plomby=[];
+
+sekundyRozladunku=0;
+
+sekundySprzatania=0;
+
+
+aktualizuj();
+
+zapiszPamiec();
+
+
+}
+
+
+}
+// START TIMERA ROZŁADUNKU
+
+function startRozladunek(){
+
+if(!czasStartRozladunku){
+
+czasStartRozladunku=new Date();
+
+}
+
+}
+
+
+// START TIMERA SPRZĄTANIA
+
+function startSprzatanie(){
+
+if(!czasStartSprzatania){
+
+czasStartSprzatania=new Date();
+
+}
+
+}
+
+
+
+
+// ZEGARY
+
+setInterval(()=>{
+
+
+if(czasStartRozladunku){
+
+sekundyRozladunku++;
+
+document.getElementById("czasRozladunku").innerHTML=
+formatCzas(sekundyRozladunku);
+
+}
+
+
+
+if(czasStartSprzatania){
+
+sekundySprzatania++;
+
+document.getElementById("czasSprzatania").innerHTML=
+formatCzas(sekundySprzatania);
+
+}
+
+
+liczWydajnosc();
+
+
+},1000);
+
+
+
+
+
+function formatCzas(s){
+
+let h=Math.floor(s/3600);
+
+let m=Math.floor((s%3600)/60);
+
+let sec=s%60;
+
+
+return (
+String(h).padStart(2,"0")
++":"
++String(m).padStart(2,"0")
++":"
++String(sec).padStart(2,"0")
+);
+
+}
+
+
+
+
+
+
+// WYDAJNOŚĆ
+
+function liczWydajnosc(){
+
+
+if(sekundyRozladunku>0){
+
+
+let wynik=
+(plomby.length/
+sekundyRozladunku)
+*60;
+
+
+document.getElementById("wydajnosc").innerHTML=
+wynik.toFixed(1);
+
+
+}
+
+
+}
+
+
+
+
+
+
+// ZAPIS PAMIĘCI
+
+function zapiszPamiec(){
+
+
+let dane={
+
+rejestracja:
+document.getElementById("rejestracja").value,
+
+
+operator:
+document.getElementById("operator").value,
+
+
+plomby:plomby,
+
+
+rozladunek:
+sekundyRozladunku,
+
+
+sprzatanie:
+sekundySprzatania
+
+};
+
+
+localStorage.setItem(
+"skanerPlomb",
+JSON.stringify(dane)
+);
+
+
+}
+
+
+
+
+
+// WCZYTANIE PO OTWARCIU
+
+window.onload=function(){
+
+
+let dane=
+localStorage.getItem("skanerPlomb");
+
+
+if(dane){
+
+
+let d=JSON.parse(dane);
+
+
+document.getElementById("rejestracja").value=
+d.rejestracja || "";
+
+
+document.getElementById("operator").value=
+d.operator || "";
+
+
+plomby=d.plomby || [];
+
+
+sekundyRozladunku=
+d.rozladunek || 0;
+
+
+sekundySprzatania=
+d.sprzatanie || 0;
+
+
+aktualizuj();
+
+
+}
+
+
+};
+
+
+
+
+
+
+
+// NOWY RAPORT
+
+function nowyRaport(){
+
+
+if(confirm(
+"Rozpocząć nowy rozładunek?"
+)){
+
+
+plomby=[];
+
+
+sekundyRozladunku=0;
+
+sekundySprzatania=0;
+
+
+czasStartRozladunku=null;
+
+czasStartSprzatania=null;
+
+
+document.getElementById("rejestracja").value="";
+
+document.getElementById("operator").value="";
+
+
+aktualizuj();
+
+
+zapiszPamiec();
+
+
+}
+
+}
+
+
+
+
+
+
+
+// EKSPORT RAPORTU CSV OTWIERANY W EXCELU
+
+function excel(){
+
+
+let reg=
+document.getElementById("rejestracja").value || "BRAK";
+
+
+let operator=
+document.getElementById("operator").value || "BRAK";
+
+
+
+let tekst=
+"Numer;Plomba;Typ;Godzina\n";
+
+
+
+plomby.forEach((p,i)=>{
+
+
+tekst+=
+(i+1)
++";"
++p.kod
++";"
++p.kod.substring(0,2)
++";"
++p.czas
++"\n";
+
+
+});
+
+
+
+tekst+="\n";
+
+tekst+="Rejestracja;"+reg+"\n";
+
+tekst+="Operator;"+operator+"\n";
+
+tekst+="Plomby razem;"+plomby.length+"\n";
+
+tekst+="Czas rozładunku;"
++formatCzas(sekundyRozladunku)
++"\n";
+
+
+let blob=
+new Blob(
+["\ufeff"+tekst],
+{
+type:"text/csv;charset=utf-8;"
+}
+);
+
+
+
+let link=document.createElement("a");
+
+
+link.href=
+URL.createObjectURL(blob);
+
+
+link.download=
+"raport_"+reg+".csv";
+
+
+link.click();
+
+
+
+}
